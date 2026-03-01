@@ -1,6 +1,8 @@
 # Buzz Web (Phones as Buzzers -> Virtual Gamepads)
 
+In this guide I'll show you how you can install and setup the `Buzz` game in a PS2 emulator and use your phones as `Buzz Controllers`.
 Turn any phones on your Wi-Fi into simple "Buzz!" controllers, and output those button presses as **virtual gamepad buttons** on your Windows PC using **ViGEm + vgamepad**.
+These are some of the main features of the project (for more details, see the [Features](#features) section):
 
 - **Host page (PC / localhost):** configure player count, rename players, see who's connected, kick/block users, live event log
 - **Join page (phones):** pick an available player slot (1-8) with the **saved player names**
