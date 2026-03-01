@@ -7,8 +7,14 @@ Turn any phones on your Wi-Fi into simple "Buzz!" controllers, and output those 
 - **Pad page (phones):** big colored buzzer buttons (Red/Blue/Orange/Green/Yellow) + shows the **saved name** at top-left
 - **Output:** virtual controllers (Players **1-4 = Xbox 360 / XInput**, Players **5-8 = DualShock 4**)
 
-In this guide you can find:
+> ⚠️ Windows-only for the **virtual gamepad** part (ViGEm). The web UI can load anywhere, but the controller output requires Windows + ViGEm.
+
+---
+
+## Table of Contents
+
 - [Buzz Web (Phones as Buzzers -\> Virtual Gamepads)](#buzz-web-phones-as-buzzers---virtual-gamepads)
+  - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Requirements](#requirements)
     - [PC / Host (recommended: Windows 10/11)](#pc--host-recommended-windows-1011)
@@ -30,8 +36,6 @@ In this guide you can find:
   - [Configuration file](#configuration-file)
   - [Network / Firewall notes](#network--firewall-notes)
   - [License](#license)
-
-> ⚠️ Windows-only for the **virtual gamepad** part (ViGEm). The web UI can load anywhere, but the controller output requires Windows + ViGEm.
 
 ---
 
@@ -166,11 +170,13 @@ Pick a player slot, then you'll be redirected to the buzzer pad.
 ---
 
 # IMPORTANT
+
 ## Buzz
 
 In order for `Buzz` to run on your PC, I recommend you install it via a PS2 emulator, such as [`PCSX2`](https://pcsx2.net/), and use the virtual gamepads created by this server as input devices.
 
 #### Steps to set up Buzz with PCSX2:
+
 1. You need a BIOS file to run games on PCSX2. You can acquire this from your own PS2 console (Google "how to dump PS2 BIOS") or, if you don't have a PS2: [PS2 BIOS Dump](https://archive.org/download/ps2-bios-megadump) and extract the .zip;
 2. Install PCSX2 and go through the initial setup;
 3. After the setup is complete, open PCSX2 and select the folder you downloaded the BIOS file to (ex: C:\Users\<your_user>\Downloads\ps2-bios-megadump\PS2_BIOS);
