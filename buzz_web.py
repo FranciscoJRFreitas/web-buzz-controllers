@@ -29,10 +29,10 @@ def push_event(kind: str, player: int | None = None, button: str | None = None, 
 # -----------------------
 # CONFIG / STATE
 # -----------------------
-MAX_PLAYERS = 4
+MAX_PLAYERS = 8
 state = {
-    "num_players": 2,  # host sets 2/3/4
-    "slots": {1: None, 2: None, 3: None, 4: None},  # {player: {"token":..., "last_seen":...}}
+    "num_players": 2,
+    "slots": {p: None for p in range(1, MAX_PLAYERS + 1)},
 }
 
 # --- KEY MAPPING (edit if you want) ---
@@ -44,29 +44,72 @@ state = {
 # }
 
 # -----------------------
-# VIRTUAL GAMEPADS (XBOX 360)
+# VIRTUAL GAMEPADS (lazy, only up to state["num_players"])
+# 1-4 = X360/XInput, 5-8 = DS4
 # -----------------------
-try:
-    GAMEPADS = {
-        1: vg.VX360Gamepad(),
-        2: vg.VX360Gamepad(),
-        3: vg.VX360Gamepad(),
-        4: vg.VX360Gamepad(),
-    }
-    VIGEM_OK = True
-except Exception as e:
-    GAMEPADS = {}
-    VIGEM_OK = False
-    VIGEM_ERR = str(e)
+def _safe_disconnect(pad):
+    """Best-effort detach; vgamepad versions differ."""
+    try:
+        if hasattr(pad, "disconnect"):
+            pad.disconnect()
+            return
+    except Exception:
+        pass
+    # fallback: let GC/destructor handle it
+    try:
+        del pad
+    except Exception:
+        pass
+
+GAMEPADS: dict[int, object] = {}
+PADTYPE: dict[int, str] = {}  # player -> "x360" | "ds4"
+VIGEM_OK = True
+VIGEM_ERR = ""
+
+def ensure_gamepads_upto(n: int):
+    """
+    Ensure pads exist for players 1..n.
+    Remove pads for players > n (device spam reduction).
+    """
+    global VIGEM_OK, VIGEM_ERR
+
+    # create missing pads up to n
+    for p in range(1, n + 1):
+        if p in GAMEPADS:
+            continue
+        try:
+            if p <= 4:
+                GAMEPADS[p] = vg.VX360Gamepad()
+                PADTYPE[p] = "x360"
+            else:
+                GAMEPADS[p] = vg.VDS4Gamepad()
+                PADTYPE[p] = "ds4"
+        except Exception as e:
+            VIGEM_OK = False
+            VIGEM_ERR = str(e)
+            print("Erro a criar gamepad virtual:", VIGEM_ERR)
+            break
+
+    # remove pads above n
+    for p in list(GAMEPADS.keys()):
+        if p > n:
+            _safe_disconnect(GAMEPADS[p])
+            GAMEPADS.pop(p, None)
+            PADTYPE.pop(p, None)
+
+# create only the initial amount
+ensure_gamepads_upto(state["num_players"])
 
 print("VIGEM_OK =", VIGEM_OK)
 if not VIGEM_OK:
     print("Erro:", VIGEM_ERR)
 
-# Mapear botoes Buzz -> botoes do comando Xbox
-# (podes mudar depois no PCSX2, mas isto e um bom default)
+# Buzz buttons (same for both pad types)
+BUZZ_BUTTONS = {"RED", "BLUE", "ORANGE", "GREEN", "YELLOW"}
+
+# --- X360 mapping (XInput) ---
 XBTN = vg.XUSB_BUTTON
-BTNMAP = {
+X360_BTNMAP = {
     "RED":    XBTN.XUSB_GAMEPAD_A,
     "BLUE":   XBTN.XUSB_GAMEPAD_B,
     "ORANGE": XBTN.XUSB_GAMEPAD_X,
@@ -74,21 +117,69 @@ BTNMAP = {
     "YELLOW": XBTN.XUSB_GAMEPAD_LEFT_SHOULDER,
 }
 
+def _resolve_attr(obj, names: list[str]):
+    """Return first existing attribute from names."""
+    for n in names:
+        if hasattr(obj, n):
+            return getattr(obj, n)
+    return None
+
+# --- DS4 mapping ---
+# vgamepad enum names vary a bit between versions, so we resolve safely.
+DSBTN = vg.DS4_BUTTONS
+
+DS4_CROSS   = _resolve_attr(DSBTN, ["DS4_BUTTON_CROSS", "DS4_BUTTON_X"])
+DS4_CIRCLE  = _resolve_attr(DSBTN, ["DS4_BUTTON_CIRCLE", "DS4_BUTTON_O"])
+DS4_SQUARE  = _resolve_attr(DSBTN, ["DS4_BUTTON_SQUARE"])
+DS4_TRIANGLE= _resolve_attr(DSBTN, ["DS4_BUTTON_TRIANGLE"])
+DS4_L1      = _resolve_attr(DSBTN, ["DS4_BUTTON_SHOULDER_LEFT", "DS4_BUTTON_L1"])
+
+DS4_BTNMAP = {
+    "RED":    DS4_CROSS,
+    "BLUE":   DS4_CIRCLE,
+    "ORANGE": DS4_SQUARE,
+    "GREEN":  DS4_TRIANGLE,
+    "YELLOW": DS4_L1,
+}
+
+# sanity check (DS4 enum names can differ by vgamepad version)
+if any(v is None for v in DS4_BTNMAP.values()):
+    print("WARNING: DS4 button mapping incomplete:", DS4_BTNMAP)
+
 def tap_gamepad_button(player: int, buzz_button: str, hold_ms: int = 50):
     """Pressiona e solta um botão no comando virtual do player."""
     if not VIGEM_OK:
         return
+
+    # ensure pad exists (useful after restart / edge cases)
+    ensure_gamepads_upto(state["num_players"])
+
     pad = GAMEPADS.get(player)
     if not pad:
         return
-    xb = BTNMAP.get(buzz_button)
-    if not xb:
+
+    kind = PADTYPE.get(player, "x360")
+    buzz_button = str(buzz_button).upper()
+
+    if kind == "x360":
+        btn = X360_BTNMAP.get(buzz_button)
+        if not btn:
+            return
+        pad.press_button(button=btn)
+        pad.update()
+        time.sleep(hold_ms / 1000.0)
+        pad.release_button(button=btn)
+        pad.update()
         return
 
-    pad.press_button(button=xb)
+    # ds4
+    btn = DS4_BTNMAP.get(buzz_button)
+    if not btn:
+        return
+    pad.press_button(button=btn)
     pad.update()
     time.sleep(hold_ms / 1000.0)
-    pad.release_button(button=xb)
+    pad.release_button(button=btn)
     pad.update()
 
 # Debounce (avoid spam double taps)
@@ -256,6 +347,10 @@ HOST_HTML = r"""
           <option value="2">2</option>
           <option value="3">3</option>
           <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
         </select>
       </label>
       <button onclick="save()">Guardar</button>
@@ -547,14 +642,14 @@ HOST_HTML = r"""
     }
 
     let connected = [];
-    for(let p=1;p<=4;p++){
+    for(let p=1;p<=8;p++){
       const slot = s.slots[p] || {busy:false};
       if(slot.busy) connected.push("P"+p);
     }
 
     if(!freezeSlots) {
       slotlist.innerHTML = "";
-      for(let p=1;p<=4;p++){
+      for(let p=1;p<=8;p++){
         const row = document.createElement("div");
         row.className="slot";
         const enabled = p <= s.num_players;
@@ -646,6 +741,10 @@ JOIN_HTML = r"""
     .p2{background:#3b82f6;color:#06121f}
     .p3{background:#facc15;color:#1a1404}
     .p4{background:#22c55e;color:#04150b}
+    .p5{background:#a78bfa;color:#140b1a}
+    .p6{background:#fb7185;color:#1a0b10}
+    .p7{background:#34d399;color:#04150b}
+    .p8{background:#fbbf24;color:#1a1404}
     .disabled{opacity:.35;filter:grayscale(1);cursor:not-allowed}
     .muted{opacity:.8;font-size:13px;line-height:1.35;margin-top:10px}
     .msg{margin-top:12px;font-weight:700;opacity:.9}
@@ -661,6 +760,10 @@ JOIN_HTML = r"""
         <button id="b2" class="p2" onclick="pick(2)">Jogador 2</button>
         <button id="b3" class="p3" onclick="pick(3)">Jogador 3</button>
         <button id="b4" class="p4" onclick="pick(4)">Jogador 4</button>
+        <button id="b5" class="p5" onclick="pick(5)">Jogador 5</button>
+        <button id="b6" class="p6" onclick="pick(6)">Jogador 6</button>
+        <button id="b7" class="p7" onclick="pick(7)">Jogador 7</button>
+        <button id="b8" class="p8" onclick="pick(8)">Jogador 8</button>
       </div>
       <div class="msg" id="msg">—</div>
       <div class="muted">
@@ -679,7 +782,7 @@ JOIN_HTML = r"""
     const r = await fetch("/state");
     const s = await r.json();
 
-    for(let p=1;p<=4;p++){
+    for(let p=1;p<=8;p++){
       const b = document.getElementById("b"+p);
       const enabled = p <= s.num_players;
       const slot = s.slots[p] || {busy:false};
@@ -725,6 +828,12 @@ PAD_HTML = r"""
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
   <title>Buzz Controller</title>
   <style>
+    :root{
+      --pad: 16px;
+      --safeTop: env(safe-area-inset-top, 0px);
+      --safeBot: env(safe-area-inset-bottom, 0px);
+    }
+
     html,body{
       margin:0;
       height:100%;
@@ -737,19 +846,19 @@ PAD_HTML = r"""
     .screen{
       min-height:100svh;
       display:flex;
+      flex-direction:column;
       align-items:center;
       justify-content:center;
-      padding:16px;
+      padding: calc(var(--pad) + var(--safeTop)) var(--pad) calc(var(--pad) + var(--safeBot));
       box-sizing:border-box;
     }
 
     .frame{
-      position:relative;
-      width:min(420px, 92vw);
+      width: min(420px, 100%);
       display:flex;
       flex-direction:column;
       align-items:center;
-      gap:10px;
+      gap:12px;
     }
 
     .topbar{
@@ -761,7 +870,6 @@ PAD_HTML = r"""
       color:#e9edf1;
       opacity:.9;
       font-weight:900;
-      margin-bottom:2px;
     }
 
     .topbar .left{
@@ -785,6 +893,7 @@ PAD_HTML = r"""
       display:flex;
       gap:8px;
       align-items:center;
+      flex-shrink:0;
     }
 
     .btn{
@@ -797,9 +906,7 @@ PAD_HTML = r"""
       color:#e5e7eb;
     }
 
-    .btn.primary{
-      background:#1f2937;
-    }
+    .btn.primary{ background:#1f2937; }
 
     .controller{
       width:100%;
@@ -808,15 +915,23 @@ PAD_HTML = r"""
       border-radius:44px;
       padding:22px 18px;
       box-sizing:border-box;
+
       display:flex;
       flex-direction:column;
       align-items:center;
+      justify-content:center; /* ✅ centers the buttons vertically */
       gap:18px;
+
       box-shadow:0 15px 40px rgba(0,0,0,.6);
     }
 
+    /* Make buttons reliably centered */
+    .controller button{
+      display:block;
+    }
+
     .red{
-      width:44%;
+      width:52%;
       aspect-ratio:1 / 1;
       border-radius:50%;
       border:none;
@@ -825,7 +940,7 @@ PAD_HTML = r"""
     }
 
     .small{
-      width:44%;
+      width:56%;
       height:12%;
       min-height:46px;
       border:none;
@@ -1254,18 +1369,20 @@ def set_config():
     data = request.get_json(silent=True) or {}
     try:
         n = int(data.get("num_players"))
-        if n not in (2, 3, 4):
-            return jsonify({"ok": False, "err": "invalid_num_players"}), 400
+    except Exception:
+        return jsonify({"ok": False, "err": "invalid_num_players"}), 400
 
-        with lock:
-            state["num_players"] = n
-            # Free any slots above n
-            for p in range(n + 1, MAX_PLAYERS + 1):
-                state["slots"][p] = None
+    if n not in range(2, MAX_PLAYERS + 1):
+        return jsonify({"ok": False, "err": "invalid_num_players"}), 400
 
-        return jsonify({"ok": True, "num_players": n})
-    except Exception as e:
-        return jsonify({"ok": False, "err": str(e)}), 500
+    with lock:
+        state["num_players"] = n
+        for p in range(n + 1, MAX_PLAYERS + 1):
+            state["slots"][p] = None
+
+        ensure_gamepads_upto(n)
+
+    return jsonify({"ok": True, "num_players": n})
 
 
 @app.post("/claim")
@@ -1284,6 +1401,8 @@ def claim():
                 return jsonify({"ok": False, "err": "disabled"}), 400
             if state["slots"][p] is not None:
                 return jsonify({"ok": False, "err": "occupied"}), 409
+
+            ensure_gamepads_upto(state["num_players"])
 
             token = secrets.token_urlsafe(24)
             state["slots"][p] = {"token": token, "last_seen": time.time(), "ip": ip}
@@ -1374,8 +1493,8 @@ def press():
         # keep alive on press too
         state["slots"][p]["last_seen"] = time.time()
 
-        #  valida o botão pelo BTNMAP (vgamepad)
-        if button not in BTNMAP:
+        # valida botão Buzz (independente do tipo de pad)
+        if button not in BUZZ_BUTTONS:
             return jsonify({"ok": False, "err": "invalid_button"}), 400
 
         # debounce per (player, button)
@@ -1391,7 +1510,8 @@ def press():
 
     # Send key outside lock
     tap_gamepad_button(p, button, hold_ms=50)
-    return jsonify({"ok": True, "player": p, "button": button, "mode": "xinput"})
+    mode = "xinput" if p <= 4 else "ds4"
+    return jsonify({"ok": True, "player": p, "button": button, "mode": mode})
 
 
 if __name__ == "__main__":
