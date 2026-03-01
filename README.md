@@ -179,7 +179,7 @@ In order for `Buzz` to run on your PC, I recommend you install it via a PS2 emul
 
 #### Steps to set up Buzz with PCSX2:
 
-1. You need a BIOS file to run games on PCSX2. You can acquire this from your own PS2 console (Google "how to dump PS2 BIOS") or, if you don't have a PS2: [PS2 BIOS Dump](https://archive.org/download/ps2-bios-megadump) and extract the .zip;
+1. You need a BIOS file to run games on PCSX2. You can acquire this from your own PS2 console (Google "how to dump PS2 BIOS") or, if you don't own a PS2: [PS2 BIOS Dump](https://archive.org/download/ps2-bios-megadump) and extract the .zip;
 2. Install PCSX2 and go through the initial setup;
 3. After the setup is complete, open PCSX2 and select the folder you downloaded the BIOS file to (ex: C:\\Users\\<your_user>\\Downloads\\ps2-bios-megadump\\PS2_BIOS);
 4. Select a .bin BIOS file (ex: ps2-0120e-20000902.bin);
