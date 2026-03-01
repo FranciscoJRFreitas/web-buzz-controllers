@@ -7,6 +7,30 @@ Turn any phones on your Wi-Fi into simple "Buzz!" controllers, and output those 
 - **Pad page (phones):** big colored buzzer buttons (Red/Blue/Orange/Green/Yellow) + shows the **saved name** at top-left
 - **Output:** virtual controllers (Players **1-4 = Xbox 360 / XInput**, Players **5-8 = DualShock 4**)
 
+In this guide you can find:
+- [Buzz Web (Phones as Buzzers -\> Virtual Gamepads)](#buzz-web-phones-as-buzzers---virtual-gamepads)
+  - [Features](#features)
+  - [Requirements](#requirements)
+    - [PC / Host (recommended: Windows 10/11)](#pc--host-recommended-windows-1011)
+    - [Phones / Controllers](#phones--controllers)
+  - [Installation](#installation)
+    - [1) Install ViGEmBus (Windows)](#1-install-vigembus-windows)
+    - [2) Clone this repo](#2-clone-this-repo)
+    - [3) Create a virtual environment (recommended)](#3-create-a-virtual-environment-recommended)
+    - [4) Install dependencies](#4-install-dependencies)
+  - [Run](#run)
+    - [Open the host dashboard (PC)](#open-the-host-dashboard-pc)
+    - [Join from phones](#join-from-phones)
+- [IMPORTANT](#important)
+  - [Buzz](#buzz)
+      - [Steps to set up Buzz with PCSX2:](#steps-to-set-up-buzz-with-pcsx2)
+  - [How it works](#how-it-works)
+  - [Timeouts, reconnect grace, debounce](#timeouts-reconnect-grace-debounce)
+  - [Host-only endpoints (localhost)](#host-only-endpoints-localhost)
+  - [Configuration file](#configuration-file)
+  - [Network / Firewall notes](#network--firewall-notes)
+  - [License](#license)
+
 > ⚠️ Windows-only for the **virtual gamepad** part (ViGEm). The web UI can load anywhere, but the controller output requires Windows + ViGEm.
 
 ---
