@@ -184,7 +184,7 @@ In order for `Buzz` to run on your PC, I recommend you install it via a PS2 emul
 5. Map the controller inputs in PCSX2 to the virtual gamepads created by this server by:
     - Going to "Config" > "Controllers" > "USB Port 1" and at the top of the window, select "Buzz Controller" as the device;
     - Do the same for "USB Port 2" if you want to use a second controller (5-8 players require mapping to USB Port 2);
-    - For each player slot (1-4) in USB port 1 and (5-8) in USB port 2, select the corresponding virtual gamepad. You can do this by going to the `http://PC_IP:5000/pads` page, going to each player and map each button to the corresponding button in PCSX2. (After being in a pad page, where you have the colored buttons, go to the PCSX2 mapping page, press the "Red" input and then press the corresponding button in the pad page, do this for all buttons and repeat for each player slot)
+    - For each player slot (1-4) in USB port 1 and (5-8) in USB port 2, select the corresponding virtual gamepad. You can do this by going to the `http://PC_IP:5000/pads` page, going to each player and map each button to the corresponding button in PCSX2. (After being in a pad page, where you have the colored buttons, go to the PCSX2 mapping page, press the "Red" input and then press the corresponding RED button in the pad page, do this for all buttons and repeat for each player slot)
     - Everything is set up! You can now use your phones as Buzz controllers in PCSX2 and run the Buzz games.
 6. To run the Buzz games, you can use your own PS2 discs or find the ISOs online. Load the ISO in PCSX2 and start playing with your phone controllers!
 
