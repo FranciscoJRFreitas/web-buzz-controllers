@@ -161,11 +161,11 @@ On the same PC (localhost):
 
 On each phone (same Wi-Fi), open:
 
-`http://PC_IP:5000/join`
+`http://<LAN_IP>:5000/join`
 
 Example:
 
-`http://192.168.1.129:5000/join`
+`http://192.168.1.129:5000/join` (yours can differ)
 
 Pick a player slot, then you'll be redirected to the buzzer pad.
 
