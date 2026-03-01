@@ -1,0 +1,13 @@
+{
+  "num_players": 2,
+  "labels": {
+    "1": "Player 1",
+    "2": "Player 2",
+    "3": "Player 3",
+    "4": "Player 4",
+    "5": "Player 5",
+    "6": "Player 6",
+    "7": "Player 7",
+    "8": "Player 8"
+  }
+}

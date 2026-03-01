@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+  <title>Buzz Join</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:0;background:#0b0d10;color:#e9edf1}
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+    .card{width:min(720px,100%);background:#141821;border-radius:20px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+    h2{margin:0 0 12px 0}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    button{border:0;border-radius:18px;padding:18px 12px;font-size:18px;font-weight:900;cursor:pointer}
+    .p1{background:#ef4444;color:#1a0b0b}
+    .p2{background:#3b82f6;color:#06121f}
+    .p3{background:#facc15;color:#1a1404}
+    .p4{background:#22c55e;color:#04150b}
+    .p5{background:#a78bfa;color:#140b1a}
+    .p6{background:#fb7185;color:#1a0b10}
+    .p7{background:#34d399;color:#04150b}
+    .p8{background:#fbbf24;color:#1a1404}
+    .disabled{opacity:.35;filter:grayscale(1);cursor:not-allowed}
+    .muted{opacity:.8;font-size:13px;line-height:1.35;margin-top:10px}
+    .msg{margin-top:12px;font-weight:700;opacity:.9}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .rebtn{background:#374151;color:#e5e7eb}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2>Choose your player</h2>
+        <button id="reconnectBtn" class="rebtn" style="display:none" onclick="reconnect()">Reconnect</button>
+      </div>
+
+      <div class="grid">
+        <button id="b1" class="p1" onclick="pick(1)">Player 1</button>
+        <button id="b2" class="p2" onclick="pick(2)">Player 2</button>
+        <button id="b3" class="p3" onclick="pick(3)">Player 3</button>
+        <button id="b4" class="p4" onclick="pick(4)">Player 4</button>
+        <button id="b5" class="p5" onclick="pick(5)">Player 5</button>
+        <button id="b6" class="p6" onclick="pick(6)">Player 6</button>
+        <button id="b7" class="p7" onclick="pick(7)">Player 7</button>
+        <button id="b8" class="p8" onclick="pick(8)">Player 8</button>
+      </div>
+
+      <div class="msg" id="msg">—</div>
+
+      <div class="muted">
+        If a slot is occupied, you'll have to wait for your turn.<br/>
+        Tip: add to favorites: <code>/join</code>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const msg = document.getElementById("msg");
+  const reconnectBtn = document.getElementById("reconnectBtn");
+
+  function setMsg(t){ msg.textContent = t; }
+
+  function setupReconnectUI(){
+    const tok = localStorage.getItem("buzz_token") || "";
+    const lastP = localStorage.getItem("buzz_player") || "";
+    if(tok && lastP){
+      reconnectBtn.style.display = "";
+      reconnectBtn.textContent = "Reconnect as Player " + lastP;
+    }
+  }
+
+  async function refresh(){
+    const r = await fetch("/state", { cache:"no-store" });
+    const s = await r.json();
+
+    for(let p=1;p<=8;p++){
+      const b = document.getElementById("b"+p);
+      const enabled = p <= s.num_players;
+      const slot = s.slots[p] || {busy:false};
+      const dis = (!enabled) || !!slot.busy;
+      const label = (s.labels && s.labels[p]) ? s.labels[p] : ("Player " + p);
+      b.textContent = label;
+      b.classList.toggle("disabled", dis);
+      b.disabled = dis;
+    }
+    setMsg("Choose an available player.");
+  }
+
+  async function pick(p){
+    setMsg("Entering Player " + p + "...");
+    const r = await fetch("/claim", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({player:p})
+    });
+    const j = await r.json();
+    if(!j.ok){
+      setMsg("Failed: " + (j.err || "occupied"));
+      await refresh();
+      return;
+    }
+    localStorage.setItem("buzz_token", j.token);
+    localStorage.setItem("buzz_player", String(j.player));
+    location.href = "/pad";
+  }
+
+  async function reconnect(){
+    const tok = localStorage.getItem("buzz_token") || "";
+    if(!tok){ setMsg("No saved session."); return; }
+
+    setMsg("Reconnecting...");
+    const r = await fetch("/reclaim", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ token: tok })
+    });
+    const j = await r.json();
+    if(!j.ok){
+      setMsg("Reconnect failed: " + (j.err || "—"));
+      await refresh();
+      return;
+    }
+    localStorage.setItem("buzz_token", j.token);
+    localStorage.setItem("buzz_player", String(j.player));
+    location.href = "/pad";
+  }
+
+  setupReconnectUI();
+  refresh();
+  setInterval(refresh, 1500);
+</script>
+</body>
+</html>

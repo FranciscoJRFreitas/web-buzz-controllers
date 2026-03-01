@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+  <title>Buzz Controller</title>
+  <style>
+    :root{--pad:16px;--safeTop:env(safe-area-inset-top,0px);--safeBot:env(safe-area-inset-bottom,0px)}
+    html,body{margin:0;height:100%;background:#0a0c10;font-family:system-ui,Segoe UI,Arial;-webkit-user-select:none;user-select:none}
+    .screen{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding: calc(var(--pad) + var(--safeTop)) var(--pad) calc(var(--pad) + var(--safeBot));
+      box-sizing:border-box}
+    .frame{width:min(420px,100%);display:flex;flex-direction:column;align-items:center;gap:12px}
+    .topbar{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;color:#e9edf1;opacity:.9;font-weight:900}
+    .topbar .left{display:flex;flex-direction:column;gap:2px;min-width:0}
+    .smallstatus{font-size:12px;opacity:.75;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44vw}
+    .actions{display:flex;gap:8px;align-items:center;flex-shrink:0}
+    .btn{border:0;border-radius:12px;padding:10px 12px;font-weight:900;cursor:pointer;background:#111827;color:#e5e7eb}
+    .btn.primary{background:#1f2937}
+    .controller{width:100%;aspect-ratio:1 / 1.9;background:#1a1d25;border-radius:44px;padding:22px 18px;box-sizing:border-box;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;box-shadow:0 15px 40px rgba(0,0,0,.6)}
+    .controller button{display:block}
+    .red{width:52%;aspect-ratio:1 / 1;border-radius:50%;border:none;background:#ff2d2d;box-shadow:0 10px 25px rgba(255,0,0,.45)}
+    .small{width:56%;height:12%;min-height:46px;border:none;border-radius:16px;box-shadow:0 6px 15px rgba(0,0,0,.45)}
+    .blue{background:#3ea6ff}.orange{background:#ff9c2f}.green{background:#47e77a}.yellow{background:#ffe347}
+    button:active{transform:scale(.96)}
+  </style>
+</head>
+<body>
+  <div class="screen">
+    <div class="frame">
+      <div class="topbar">
+        <div class="left">
+          <div id="who">Buzz</div>
+          <div class="smallstatus" id="status">Ligado</div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="fsBtn" onclick="toggleFullscreen()">Fullscreen</button>
+          <button class="btn" onclick="leave()">Leave</button>
+        </div>
+      </div>
+
+      <div class="controller">
+        <button class="red" id="RED" aria-label="Red"></button>
+        <button class="small blue" id="BLUE" aria-label="Blue"></button>
+        <button class="small orange" id="ORANGE" aria-label="Orange"></button>
+        <button class="small green" id="GREEN" aria-label="Green"></button>
+        <button class="small yellow" id="YELLOW" aria-label="Yellow"></button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  let tokenNow = localStorage.getItem("buzz_token");
+  let player   = localStorage.getItem("buzz_player");
+
+  const whoEl    = document.getElementById("who");
+  const statusEl = document.getElementById("status");
+  const fsBtn    = document.getElementById("fsBtn");
+
+  function setStatus(t){ statusEl.textContent = t; }
+
+  function setButtonsEnabled(on){
+    ["RED","BLUE","ORANGE","GREEN","YELLOW"].forEach(id=>{
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.disabled = !on;
+      el.style.opacity = on ? "1" : ".35";
+    });
+  }
+
+  function clearSession(){
+    localStorage.removeItem("buzz_token");
+    localStorage.removeItem("buzz_player");
+    tokenNow = null;
+    player = null;
+  }
+
+  function goJoin(){
+    clearSession();
+    location.replace("/join");
+  }
+
+  async function ensureSession(){
+    tokenNow = localStorage.getItem("buzz_token");
+    if(!tokenNow){
+      goJoin();
+      return false;
+    }
+    try{
+      const r = await fetch("/session?token=" + encodeURIComponent(tokenNow), { cache:"no-store" });
+      if(!r.ok){
+        // don't hard-force immediately; show reconnect hint via join page
+        goJoin();
+        return false;
+      }
+      const j = await r.json();
+      if(!j.ok){
+        goJoin();
+        return false;
+      }
+      if(j.player && String(j.player) !== String(player)){
+        player = String(j.player);
+        localStorage.setItem("buzz_player", player);
+      }
+      const label = (j.label || "").trim();
+      whoEl.textContent = label ? label : (player ? ("Player " + player) : "No session");
+      return true;
+    }catch(e){
+      setButtonsEnabled(false);
+      setStatus("No network (check Wi-Fi)");
+      return false;
+    }
+  }
+
+  whoEl.textContent = "…";
+
+  function vibrate(){ if(navigator.vibrate) navigator.vibrate(35); }
+
+  async function press(btn){
+    tokenNow = localStorage.getItem("buzz_token");
+    if(!tokenNow){ goJoin(); return; }
+
+    try{
+      vibrate();
+      const r = await fetch("/press", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ token: tokenNow, button: btn })
+      });
+
+      if(!r.ok){
+        let err = "";
+        try{ err = (await r.json()).err || ""; }catch(_){}
+        if(r.status === 403 || err === "blocked"){ goJoin(); return; }
+        if(r.status === 404 || err === "no_session"){ goJoin(); return; }
+        setStatus("Error (" + r.status + ")");
+        return;
+      }
+
+      setStatus("Sent: " + btn);
+      setTimeout(()=>setStatus("Connected"), 180);
+    }catch(e){
+      setStatus("Error (network/firewall)");
+    }
+  }
+
+  function bind(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("touchstart", (e)=>{ e.preventDefault(); press(id); }, {passive:false});
+    el.addEventListener("mousedown", ()=>press(id));
+  }
+  ["RED","BLUE","ORANGE","GREEN","YELLOW"].forEach(bind);
+
+  async function heartbeat(){
+    tokenNow = localStorage.getItem("buzz_token");
+    if(!tokenNow) return;
+    try{
+      const r = await fetch("/heartbeat", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ token: tokenNow })
+      });
+      if(!r.ok){
+        let err = "";
+        try{ err = (await r.json()).err || ""; }catch(_){}
+        if(r.status === 403 || err === "blocked"){ goJoin(); return; }
+        if(r.status === 404 || err === "no_session"){ goJoin(); return; }
+      }
+    }catch(_){}
+  }
+  setInterval(heartbeat, 5000);
+
+  async function leave(){
+    tokenNow = localStorage.getItem("buzz_token");
+    if(tokenNow){
+      try{
+        await fetch("/leave", {
+          method:"POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ token: tokenNow })
+        });
+      }catch(_){}
+    }
+    goJoin();
+  }
+
+  // ✅ unload cleanup via sendBeacon
+  function beaconLeave(){
+    try{
+      const tok = localStorage.getItem("buzz_token") || "";
+      if(!tok) return;
+      const payload = JSON.stringify({ token: tok });
+      navigator.sendBeacon("/leave_beacon", payload);
+    }catch(_){}
+  }
+  window.addEventListener("pagehide", beaconLeave);
+
+  // Fullscreen
+  function isFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  async function enterFullscreen(){
+    const el = document.documentElement;
+    if(el.requestFullscreen) await el.requestFullscreen();
+    else if(el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+    setTimeout(()=>window.scrollTo(0,1), 50);
+  }
+  async function exitFullscreen(){
+    if(document.exitFullscreen) await document.exitFullscreen();
+    else if(document.webkitExitFullscreen) await document.webkitExitFullscreen();
+  }
+  async function toggleFullscreen(){
+    try{
+      if(isFullscreen()) await exitFullscreen();
+      else await enterFullscreen();
+      updateFsButton();
+    }catch(e){
+      setStatus("Fullscreen not supported");
+    }
+  }
+  function updateFsButton(){ fsBtn.textContent = isFullscreen() ? "Exit fullscreen" : "Fullscreen"; }
+  document.addEventListener("fullscreenchange", updateFsButton);
+  document.addEventListener("webkitfullscreenchange", updateFsButton);
+  updateFsButton();
+
+  // Boot
+  setButtonsEnabled(false);
+  setStatus("Checking session...");
+  ensureSession().then(ok=>{
+    if(ok){
+      setButtonsEnabled(true);
+      setStatus("Connected");
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Buzz Host</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:16px;background:#0f1115;color:#e9edf1}
+    .layout{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1.1fr;gap:16px;align-items:start}
+    @media (max-width:980px){ .layout{grid-template-columns:1fr;} }
+    .card{background:#151924;border-radius:18px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    select,button,input{font-size:16px;padding:10px 12px;border-radius:12px;border:0}
+    select{background:#20263a;color:#e9edf1}
+    button{background:#3b82f6;color:#0b1220;font-weight:800;cursor:pointer}
+    .muted{opacity:.8;font-size:13px;line-height:1.35;margin-top:10px}
+    .slots{margin-top:14px;background:#101423;border-radius:14px;padding:12px}
+    .slot{display:flex;justify-content:space-between;gap:10px;padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.06);align-items:center}
+    .slot:last-child{border-bottom:0}
+    .pill{padding:4px 10px;border-radius:999px;font-weight:800;font-size:12px}
+    .free{background:#1f2937;color:#cbd5e1}
+    .busy{background:#16a34a;color:#052e12}
+    code{background:#0b1020;padding:2px 6px;border-radius:8px}
+
+    .pill.busy{cursor:pointer;user-select:none;position:relative;padding-right:28px}
+    .pill.busy::after{content:"▾";position:absolute;right:10px;top:50%;transform:translateY(-50%);opacity:.9;font-weight:900}
+    .dd{position:relative;display:inline-block}
+    .ddmenu{position:absolute;right:0;top:calc(100% + 8px);background:#0b1020;border:1px solid rgba(255,255,255,.10);border-radius:14px;min-width:220px;padding:6px;box-shadow:0 18px 50px rgba(0,0,0,.55);z-index:50;display:none}
+    .dd.open .ddmenu{display:block}
+    .dditem{width:100%;display:flex;justify-content:space-between;gap:10px;align-items:center;border:0;background:transparent;color:#e9edf1;padding:10px 10px;border-radius:12px;cursor:pointer;font-weight:900;text-align:left}
+    .dditem:hover{background: rgba(255,255,255,.06)}
+    .dditem.danger{color:#fecaca}
+    .dditem small{opacity:.75;font-weight:800}
+
+    .eventbox{margin-top:10px;background:#0b1020;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px;height:320px;overflow-y:auto;box-shadow: inset 0 0 0 1px rgba(255,255,255,.04)}
+    .ev{display:flex;gap:10px;align-items:center;padding:6px 6px;border-bottom:1px solid rgba(255,255,255,.06);font-family:ui-monospace,Consolas,monospace;font-size:13px}
+    .ev:last-child{border-bottom:0}
+    .ts{opacity:.7;min-width:92px}
+    .badge{font-family:system-ui;font-size:11px;font-weight:900;padding:3px 8px;border-radius:999px;background:#111827;border:1px solid rgba(255,255,255,.08)}
+    .badge.join{background: rgba(34,197,94,.15);border-color: rgba(34,197,94,.35)}
+    .badge.leave{background: rgba(239,68,68,.15);border-color: rgba(239,68,68,.35)}
+    .badge.timeout{background: rgba(250,204,21,.12);border-color: rgba(250,204,21,.35)}
+    .badge.press{background: rgba(59,130,246,.12);border-color: rgba(59,130,246,.35)}
+    .badge.kick{background: rgba(148,163,184,.12);border-color: rgba(148,163,184,.35)}
+    .badge.block{background: rgba(239,68,68,.12);border-color: rgba(239,68,68,.35)}
+    .badge.unblock{background: rgba(34,197,94,.12);border-color: rgba(34,197,94,.35)}
+    .badge.reset{background: rgba(148,163,184,.12);border-color: rgba(148,163,184,.35)}
+    .badge.label{background: rgba(167,139,250,.12);border-color: rgba(167,139,250,.35)}
+    .badge.rejoin{background: rgba(34,197,94,.12);border-color: rgba(34,197,94,.35)}
+
+    .btn-inline{display:inline-flex;align-items:center;gap:8px}
+    .icon{width:18px;height:18px;display:inline-block}
+
+    .label-input{width:160px;background:#0b1020;color:#e9edf1;border:1px solid rgba(255,255,255,.12)}
+    .mini{font-size:12px;padding:8px 10px;border-radius:10px}
+    .dangerbtn{background:#ef4444;color:#1a0b0b}
+    .goodbtn{background:#22c55e;color:#052e12}
+    .graybtn{background:#374151;color:#e5e7eb}
+    .label-edit{
+      width: 260px;
+      max-width: 52vw;
+      background: transparent;
+      color:#e9edf1;
+      border: 1px solid transparent;
+      padding: 6px 10px;
+      border-radius: 12px;
+      font-weight: 900;
+      font-size: 18px;
+      line-height: 1.1;
+    }
+    .label-edit:hover{ border-color: rgba(255,255,255,.10); background: rgba(255,255,255,.02); }
+    .label-edit:focus{
+      outline:none;
+      background:#0b1020;
+      border-color: rgba(255,255,255,.18);
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="card">
+      <h2 style="margin:0 0 10px 0;">Buzz Host (PC)</h2>
+
+      <div class="row" style="justify-content:space-between">
+        <div class="row">
+          <button class="btn-inline goodbtn" onclick="location.href='/share'">
+            Share QR
+            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M14 3h7v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M21 14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          <button class="btn-inline graybtn" onclick="copyJoinUrl()">
+            Copy Join URL
+          </button>
+        </div>
+
+        <div id="status" style="opacity:.85">—</div>
+      </div>
+
+      <div class="muted" style="margin-bottom:12px">
+        <b>Note:</b> open the share link on players' phones, on the same Wi-Fi network.
+      </div>
+
+      <div class="row">
+        <label><b>Players:</b>
+          <select id="players">
+            <option value="2">2</option><option value="3">3</option><option value="4">4</option>
+            <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+          </select>
+        </label>
+
+        <button class="mini dangerbtn" onclick="freeAll()">Kick all</button>
+        <button class="mini graybtn" onclick="clearLogs()">Clear logs</button>
+      </div>
+
+      <div class="slots">
+        <div style="font-weight:900;margin-bottom:8px">Players</div>
+        <div id="slotlist"></div>
+      </div>
+
+      <div class="slots" style="margin-top:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div style="font-weight:900">IPs blocked</div>
+          <div style="opacity:.75;font-size:12px;font-weight:800" id="blockedCount">—</div>
+        </div>
+        <div id="blockedList" class="muted" style="margin-top:10px"></div>
+      </div>
+
+      <div class="muted">
+        Note: if a mobile closes the page, the spot frees itself in ~{{timeout}}s.
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <h2 style="margin:0">Monitoring</h2>
+        <div id="online" style="opacity:.85;font-size:12px;font-weight:800"></div>
+      </div>
+
+      <div class="slots" style="margin-top:12px">
+        <div style="font-weight:900">Activity (live)</div>
+        <div id="eventbox" class="eventbox"><div id="eventlist"></div></div>
+        <div class="muted" style="margin-top:8px">Tip: if you're at the bottom, the log follows automatically.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const statusEl = document.getElementById("status");
+  const sel = document.getElementById("players");
+  const slotlist = document.getElementById("slotlist");
+
+  const eventbox = document.getElementById("eventbox");
+  const eventlist = document.getElementById("eventlist");
+  const onlineEl = document.getElementById("online");
+
+  const blockedListEl = document.getElementById("blockedList");
+  const blockedCountEl = document.getElementById("blockedCount");
+
+  let editingPlayer = null;
+  let dirtyNames = {};
+  let savedLabels = {};          // last known from server
+  let saveTimers = {};           // per-player debounce timers
+  let savingNow = {};            // avoid double-saves per player
+
+  let applyingPlayers = false;
+  let dropdownOpenP = null;
+
+  function setStatus(t){ statusEl.textContent = t; }
+
+  function fmtTime(ts){ return new Date(ts*1000).toLocaleTimeString(); }
+  function isNearBottom(el){ return (el.scrollHeight - el.scrollTop - el.clientHeight) < 40; }
+
+  function onLabelFocus(p, el){
+    editingPlayer = p;
+    // Keep current value as dirty if user starts editing
+    dirtyNames[p] = el.value;
+  }
+
+  function scheduleAutoSave(p, el){
+    if(saveTimers[p]) clearTimeout(saveTimers[p]);
+    saveTimers[p] = setTimeout(() => {
+      // only auto-save if the value actually differs from server value
+      saveLabelIfChanged(p, el, { reason: "idle" });
+    }, 3000);
+  }
+
+  function onLabelInput(p, el){
+    dirtyNames[p] = el.value;
+    scheduleAutoSave(p, el);
+  }
+
+  function onLabelKeyDown(e, p, el){
+    if(e.key === "Enter"){
+      e.preventDefault();
+      saveLabelIfChanged(p, el, { reason: "enter", forceBlur: true });
+    } else if(e.key === "Escape"){
+      // revert to saved label
+      const back = savedLabels[p] ?? (`Player ${p}`);
+      el.value = back;
+      dirtyNames[p] = back;
+      el.blur();
+    }
+  }
+
+  async function onLabelBlur(p, el){
+    editingPlayer = null;
+
+    if (saveTimers[p]) clearTimeout(saveTimers[p]);
+    saveTimers[p] = null;
+
+    if (savingNow[p]) return;   // ✅ add this
+
+    await saveLabelIfChanged(p, el, { reason: "blur" });
+  }
+
+  /**
+   * Saves label to server ONLY if it differs from savedLabels[p].
+   * Also updates local savedLabels + UI without forcing a full refresh while typing.
+   */
+  async function saveLabelIfChanged(p, el, opts = {}){
+    const forceBlur = !!opts.forceBlur;
+    if(savingNow[p]) return;
+
+    const raw = (el && typeof el.value === "string") ? el.value : "";
+    const name = raw.trim();
+
+    // compare against last known server label (trimmed)
+    const current = String(savedLabels[p] ?? (`Player ${p}`)).trim();
+
+    // if nothing changed, just clear dirty and exit
+    if(name === current){
+      delete dirtyNames[p];
+      if(forceBlur && el) el.blur();
+      return;
+    }
+
+    savingNow[p] = true;
+    setStatus("Saving name...");
+
+    try{
+      const r = await fetch("/label", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ player: p, label: name })
+      });
+      const j = await r.json();
+      if(!j.ok){
+        setStatus("Rename error: " + (j.err || r.status));
+        return;
+      }
+
+      // server is source of truth
+      savedLabels[p] = j.label;
+      delete dirtyNames[p];
+
+      // update input immediately
+      if(el) el.value = j.label;
+
+      setStatus("Renamed: " + j.label);
+
+      // no need to call refresh() here — join page will pick it up via /state
+      // host page will pick it up on next refresh anyway
+      if(forceBlur && el) el.blur();
+    }catch(_){
+      setStatus("Rename error (network)");
+    }finally{
+      savingNow[p] = false;
+    }
+  }
+
+  // --- SSE events ---
+  function renderEvent(e){
+    const kind = e.kind || "press";
+    const p = e.player ?? "?";
+    const label = e.label || (e.meta || ("P" + p));
+
+    let labelTxt = String(kind).toUpperCase();
+    let text = "";
+
+    if(kind === "press"){
+      text = `${label}: ${String(e.button||"").toUpperCase()}`;
+    } else if(kind === "join"){
+      text = `${label} joined (${e.meta || ""})`;
+    } else if(kind === "rejoin"){
+      text = `${label} rejoined (${e.meta || ""})`;
+    } else if(kind === "leave"){
+      text = `${label} left`;
+    } else if(kind === "timeout"){
+      text = `${label} timeout`;
+    } else if(kind === "kick"){
+      text = `${label} was disconnected (${e.meta || ""})`;
+    } else if(kind === "block"){
+      text = `IP blocked: ${e.meta || ""}`;
+    } else if(kind === "unblock"){
+      text = `IP unblocked: ${e.meta || ""}`;
+    } else if(kind === "reset"){
+      text = `Free all slots`;
+    } else if(kind === "label"){
+      text = `Renamed: ${label}`;
+    } else if(kind === "config"){
+      text = `Config: ${e.meta || ""}`;
+    } else if(kind === "log"){
+      text = `Logs cleared`;
+    } else {
+      text = `${label}: ${kind}`;
+    }
+
+    const row = document.createElement("div");
+    row.className = "ev";
+    row.innerHTML = `
+      <span class="ts">[${fmtTime(e.ts)}]</span>
+      <span class="badge ${kind}">${labelTxt}</span>
+      <span>${text}</span>
+    `;
+    return row;
+  }
+
+  function startSSE(){
+    const es = new EventSource("/events/stream");
+    es.addEventListener("ev", (msg)=>{
+      try{
+        const e = JSON.parse(msg.data);
+        const stick = isNearBottom(eventbox);
+        eventlist.appendChild(renderEvent(e));
+
+        while(eventlist.children.length > 2000){
+          eventlist.removeChild(eventlist.firstChild);
+        }
+        if(stick) eventbox.scrollTop = eventbox.scrollHeight;
+      }catch(_){}
+    });
+
+    es.onerror = ()=>{
+      setStatus("SSE disconnected (retrying...)");
+      es.close();
+      setTimeout(startSSE, 1000);
+    };
+  }
+
+  // --- dropdown for busy players ---
+  function openDropdownFor(p){
+    closeAllDropdowns();
+    const dd = document.querySelector(`.dd[data-p='${p}']`);
+    if(dd) dd.classList.add("open");
+    dropdownOpenP = p;
+  }
+  function togglePlayerDropdown(p){
+    const dd = document.querySelector(`.dd[data-p='${p}']`);
+    const isOpen = dd && dd.classList.contains("open");
+    if(isOpen){ closeAllDropdowns(); dropdownOpenP = null; }
+    else openDropdownFor(p);
+  }
+  function closeAllDropdowns(){
+    document.querySelectorAll(".dd.open").forEach(el => el.classList.remove("open"));
+    dropdownOpenP = null;
+  }
+  document.addEventListener("click", (e)=>{ if(!e.target.closest(".dd")) closeAllDropdowns(); });
+
+  // --- config: apply instantly ---
+  sel.addEventListener("change", async ()=>{
+    if(applyingPlayers) return;
+    applyingPlayers = true;
+
+    setStatus("Updating players...");
+    try{
+      const n = parseInt(sel.value, 10);
+      const r = await fetch("/config", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ num_players: n })
+      });
+      const j = await r.json();
+      if(!j.ok){ setStatus("Error: " + (j.err || "—")); return; }
+      setStatus("Players updated");
+      await refresh();
+    }catch(e){
+      setStatus("Network error");
+    }finally{
+      applyingPlayers = false;
+    }
+  });
+
+  // --- host actions ---
+  async function freeAll(){
+    if(!confirm("Free all slots?")) return;
+    const r = await fetch("/kick_all", { method:"POST" });
+    const j = await r.json();
+    setStatus(j.ok ? "Free all slots done" : "Free all slots error");
+    await refresh();
+  }
+  async function clearLogs(){
+    if(!confirm("Clear logs?")) return;
+    const r = await fetch("/logs/clear", { method:"POST" });
+    const j = await r.json();
+    if(j.ok){
+      eventlist.innerHTML = "";
+      setStatus("Logs cleared");
+    } else setStatus("Clear error");
+  }
+
+  async function copyJoinUrl(){
+    try{
+      const r = await fetch("/join_url", { cache:"no-store" });
+      const j = await r.json();
+      if(!j.ok) { setStatus("Copy error"); return; }
+      await navigator.clipboard.writeText(j.url);
+      setStatus("Join URL copied");
+    }catch(e){
+      setStatus("Copy not supported");
+    }
+  }
+
+  // --- kick/block ---
+  async function kick(p){
+    if(!confirm("Kick player " + p + "?")) return;
+    const r = await fetch("/kick", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ player: p })
+    });
+    const j = await r.json();
+    setStatus(j.ok ? ("Kicked P" + p) : ("Kick error: " + (j.err||"")));
+    await refresh();
+  }
+  async function blockFromBtn(btn, p){
+    const ip = (btn && btn.dataset) ? (btn.dataset.ip || "") : "";
+    if(!confirm("Block IP " + (ip||"(unknown)") + " and kick?")) return;
+    const r = await fetch("/block", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ mode:"block", player:p, ip })
+    });
+    const j = await r.json();
+    setStatus(j.ok ? ("Blocked " + j.ip) : ("Block error"));
+    await refresh();
+    await refreshBlocked();
+  }
+
+  // --- blocked list ---
+  async function refreshBlocked(){
+    try{
+      const r = await fetch("/blocked", { cache:"no-store" });
+      const j = await r.json();
+      if(!j.ok) return;
+      const ips = j.ips || [];
+      blockedCountEl.textContent = ips.length ? (ips.length + " blocked") : "None";
+      if(!ips.length){
+        blockedListEl.innerHTML = "<span style='opacity:.8'>—</span>";
+        return;
+      }
+      blockedListEl.innerHTML = ips.map(ip => `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.06)">
+          <code>${ip}</code>
+          <button class="mini goodbtn" onclick="unblockIp('${ip.replaceAll("'", "\\'")}')">Unblock</button>
+        </div>
+      `).join("");
+    }catch(_){}
+  }
+  async function unblockIp(ip){
+    if(!confirm("Unblock " + ip + "?")) return;
+    const r = await fetch("/unblock", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ ip })
+    });
+    const j = await r.json();
+    setStatus(j.ok ? ("Unblocked " + ip) : "Unblock error");
+    await refreshBlocked();
+  }
+
+  // --- main refresh (still polls /state at 2s) ---
+  async function refresh(){
+    const r = await fetch("/state", { cache:"no-store" });
+    const s = await r.json();
+    // keep latest labels from server (used for change detection)
+    if (s.labels) {
+      for (let p = 1; p <= 8; p++) {
+        const k = String(p);
+        if (s.labels[k] !== undefined) savedLabels[p] = s.labels[k];
+      }
+    }
+    const freezeSlots = !!document.querySelector(".dd.open") || (editingPlayer !== null);
+    sel.value = String(s.num_players);
+
+    let connected = [];
+    for(let p=1;p<=s.num_players;p++){
+      if(s.slots[p] && s.slots[p].busy) connected.push((s.slots[p].label || ("P"+p)));
+    }
+    onlineEl.textContent = connected.length ? ("Connected: " + connected.join(" • ")) : "No players connected";
+
+    if(!freezeSlots){
+      slotlist.innerHTML = "";
+      for(let p=1;p<=s.num_players;p++){
+        const slot = s.slots[p] || { busy:false };
+        const busy = !!slot.busy;
+        const ip = slot.ip || "";
+        const savedLabel = (s.labels && (s.labels[String(p)] !== undefined)) ? s.labels[String(p)] : ("Player " + p);
+        const val = (dirtyNames[p] !== undefined) ? dirtyNames[p] : savedLabel;
+
+        const row = document.createElement("div");
+        row.className = "slot";
+        row.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="row" style="gap:10px;margin:0;align-items:center">
+              <input
+                class="label-edit"
+                id="label_${p}"
+                value="${val.replaceAll('"','&quot;')}"
+                placeholder="Player ${p}"
+                onfocus="onLabelFocus(${p}, this)"
+                onblur="onLabelBlur(${p}, this)"
+                oninput="onLabelInput(${p}, this)"
+                onkeydown="onLabelKeyDown(event, ${p}, this)"
+              />
+              <span style="opacity:.55;font-weight:900">#${p}</span>
+            </div>
+          </div>
+
+          <div class="right">
+            ${
+              busy ? `
+                <div class="dd" data-p="${p}">
+                  <div class="pill busy" onclick="togglePlayerDropdown(${p})">BUSY</div>
+                  <div class="ddmenu">
+                    <button class="dditem" onclick="kick(${p}); closeAllDropdowns();">Kick <small>disconnect</small></button>
+                    <button class="dditem danger" data-ip="${ip}" onclick="blockFromBtn(this, ${p}); closeAllDropdowns();">
+                      Block IP <small>${ip || "—"}</small>
+                    </button>
+                  </div>
+                </div>
+              ` : `<div class="pill free">FREE</div>`
+            }
+          </div>
+        `;
+        slotlist.appendChild(row);
+      }
+    }
+
+    if(!freezeSlots && dropdownOpenP){
+      openDropdownFor(dropdownOpenP);
+    }
+    setStatus("Updated");
+  }
+
+  // boot
+  startSSE();
+  refresh();
+  refreshBlocked();
+  setInterval(refresh, 2000);
+  setInterval(refreshBlocked, 2000);
+</script>
+</body>
+</html>

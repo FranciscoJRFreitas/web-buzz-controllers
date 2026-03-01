@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Buzz Share</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:16px;background:#0f1115;color:#e9edf1}
+    .card{max-width:720px;margin:0 auto;background:#151924;border-radius:18px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    a{color:#93c5fd}
+    code{background:#0b1020;padding:2px 6px;border-radius:8px}
+    .qr{background:#fff;border-radius:16px;padding:12px;display:inline-block}
+    .btn{background:#3b82f6;color:#0b1220;font-weight:900;cursor:pointer;border:0;border-radius:12px;padding:10px 12px}
+    .muted{opacity:.8;font-size:13px;line-height:1.35;margin-top:10px}
+    .urlbox{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+    input{width:min(520px, 100%);padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0b1020;color:#e9edf1}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Share Buzz (QR)</h2>
+      <div class="row"><a href="/host">← Go back</a></div>
+    </div>
+
+    <div class="muted">
+      Ask players to open this link (or scan the QR) on their phone, on the same Wi-Fi:
+    </div>
+
+    <div class="urlbox">
+      <input id="joinUrl" value="{{ join_url }}" readonly />
+      <button class="btn" onclick="copy()">Copy</button>
+    </div>
+
+    <div class="muted" style="margin-bottom:8px;font-weight:800;margin-left:10px">QR Code</div>
+    <div style="margin-top:14px; justify-content:center; display:flex;">
+      {% if qr_uri %}
+        <div class="qr">
+          <img src="{{ qr_uri }}" alt="QR" style="display:block;width:min(360px, 70vw);height:auto"/>
+        </div>
+      {% else %}
+        <div class="muted">(QR unavailable — missing <code>qrcode</code> library.)</div>
+      {% endif %}
+    </div>
+
+    <div class="muted" style="margin-top:16px">
+      Tip: if the QR doesn't appear, install: <code>pip install "qrcode[pil]"</code>
+    </div>
+  </div>
+
+<script>
+  async function copy(){
+    const el = document.getElementById("joinUrl");
+    try{
+      await navigator.clipboard.writeText(el.value);
+    }catch(e){
+      el.select();
+      el.setSelectionRange(0, 99999);
+      try{ document.execCommand("copy"); }catch(_){}
+    }
+  }
+</script>
+</body>
+</html>
